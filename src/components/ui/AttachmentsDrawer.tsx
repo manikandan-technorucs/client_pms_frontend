@@ -141,7 +141,7 @@ const AttachmentsDrawer: React.FC<AttachmentsDrawerProps> = ({
                     icon="pi pi-download"
                     className="p-button-text p-button-sm"
                     style={{ color: 'var(--accent)', padding: '6px 8px' }}
-                    onClick={async (e) => {
+                    onClick={async () => {
                       try {
                         const url = await attachmentsApi.getSignedUrl(att.id);
                         window.open(url, '_blank');

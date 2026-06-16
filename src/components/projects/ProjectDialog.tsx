@@ -7,7 +7,7 @@ import { Dropdown } from 'primereact/dropdown';
 import { Calendar } from 'primereact/calendar';
 import { FileUpload } from 'primereact/fileupload';
 import { Divider } from 'primereact/divider';
-import axiosClient from '../../api/axiosClient';
+
 import attachmentsApi from '../../api/attachmentsApi';
 import type { Project, ProjectCreate, ProjectUpdate, StatusValue, Attachment } from '../../types';
 import { STATUS_OPTIONS } from '../../types';

@@ -2,7 +2,7 @@ import axios from 'axios';
 
 
 const axiosClient = axios.create({
-  // Use absolute URL from environment if set (e.g. production), fallback to Vite proxy path
+
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 30000,
   headers: {

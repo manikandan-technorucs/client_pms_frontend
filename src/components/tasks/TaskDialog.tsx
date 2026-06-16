@@ -8,7 +8,7 @@ import { Calendar } from 'primereact/calendar';
 import { Chips } from 'primereact/chips';
 import { FileUpload } from 'primereact/fileupload';
 import { Divider } from 'primereact/divider';
-import axiosClient from '../../api/axiosClient';
+
 import attachmentsApi from '../../api/attachmentsApi';
 import type { Attachment, Task, TaskCreate, TaskUpdate, StatusValue } from '../../types';
 import { STATUS_OPTIONS } from '../../types';

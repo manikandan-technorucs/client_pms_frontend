@@ -1,14 +1,9 @@
 import axiosClient from './axiosClient';
 import type { Attachment } from '../types';
 
-/**
- * Attachments API — project-level file attachment operations.
- */
+
 const attachmentsApi = {
-  /**
-   * Upload one or more files and attach them to a project.
-   * Returns the newly created Attachment records.
-   */
+
   uploadToProject: (projectId: number, files: File[]): Promise<Attachment[]> => {
     const fd = new FormData();
     files.forEach((file) => fd.append('new_files', file, file.name));
@@ -28,7 +23,7 @@ const attachmentsApi = {
       .then((res) => res.data),
 
   getSignedUrl: async (attachmentId: number): Promise<string> => {
-    const { data } = await axiosClient.get<{url: string}>(`/attachments/${attachmentId}/url`);
+    const { data } = await axiosClient.get<{ url: string }>(`/attachments/${attachmentId}/url`);
     return data.url;
   },
 };
