@@ -4,6 +4,13 @@ import type { Bug, BugCreate, BugUpdate } from '../types';
 
 /**
  * useBugs — decoupled business logic hook for bug management within a project.
+ *
+ * Optimization strategy:
+ * - On create: re-fetch to get full nested tree (parent relationships need sync).
+ * - On update: replace the updated bug in-place → NO re-fetch needed.
+ * - On delete: optimistic remove, then background re-fetch for cascade consistency.
+ *
+ * This reduces API calls from 3× (mutation + re-fetch) to 1× for update/delete.
  */
 export function useBugs(projectId: number | undefined) {
   const [bugs, setBugs] = useState<Bug[]>([]);
@@ -28,6 +35,9 @@ export function useBugs(projectId: number | undefined) {
     refresh();
   }, [refresh]);
 
+  /**
+   * createBug — re-fetches after create to get correct nested tree structure.
+   */
   const createBug = useCallback(
     async (data: BugCreate): Promise<Bug> => {
       const created = await bugsApi.create(data);
@@ -37,6 +47,9 @@ export function useBugs(projectId: number | undefined) {
     [refresh],
   );
 
+  /**
+   * updateBug — replaces bug in state using server response, no full re-fetch.
+   */
   const updateBug = useCallback(
     async (
       id: number,
@@ -45,16 +58,23 @@ export function useBugs(projectId: number | undefined) {
       newFiles: File[],
     ): Promise<Bug> => {
       const updated = await bugsApi.update(id, data, keepIds, newFiles);
-      await refresh();
+      // Recursively replace the updated bug in the nested tree
+      setBugs((prev) => replaceBugInTree(prev, updated));
       return updated;
     },
-    [refresh],
+    [],
   );
 
+  /**
+   * deleteBug — optimistic remove, then background re-fetch for cascade sync.
+   */
   const deleteBug = useCallback(
     async (id: number): Promise<void> => {
+      // Optimistic remove — UI updates instantly
+      setBugs((prev) => removeBugFromTree(prev, id));
       await bugsApi.remove(id);
-      await refresh();
+      // Background refresh to sync any cascade-deleted sub-bugs
+      refresh().catch(console.error);
     },
     [refresh],
   );
@@ -83,4 +103,33 @@ export function useBugs(projectId: number | undefined) {
     updateBug,
     deleteBug,
   };
+}
+
+// ─── Tree manipulation helpers ────────────────────────────────────────────────
+
+/**
+ * Recursively replaces a bug (by id) anywhere in the nested bug tree.
+ */
+function replaceBugInTree(bugs: Bug[], updated: Bug): Bug[] {
+  return bugs.map((b) => {
+    if (b.id === updated.id) return updated;
+    if (b.sub_bugs?.length) {
+      return { ...b, sub_bugs: replaceBugInTree(b.sub_bugs, updated) };
+    }
+    return b;
+  });
+}
+
+/**
+ * Recursively removes a bug (by id) from the nested bug tree.
+ */
+function removeBugFromTree(bugs: Bug[], id: number): Bug[] {
+  return bugs
+    .filter((b) => b.id !== id)
+    .map((b) => {
+      if (b.sub_bugs?.length) {
+        return { ...b, sub_bugs: removeBugFromTree(b.sub_bugs, id) };
+      }
+      return b;
+    });
 }

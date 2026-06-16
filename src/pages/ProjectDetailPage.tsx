@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { TreeTable } from 'primereact/treetable';
 import { Column } from 'primereact/column';
@@ -16,7 +16,7 @@ import TaskDialog from '../components/tasks/TaskDialog';
 import BugDialog from '../components/bugs/BugDialog';
 import AttachmentsDrawer from '../components/ui/AttachmentsDrawer';
 import ProjectAttachmentsPanel from '../components/projects/ProjectAttachmentsPanel';
-import { useProjects } from '../hooks/useProjects';
+import { useProjectsContext } from '../context/ProjectsContext';
 import { useTasks } from '../hooks/useTasks';
 import { useBugs } from '../hooks/useBugs';
 import type {
@@ -70,6 +70,45 @@ function buildBugTree(bugs: Bug[]): TreeNode[] {
   return bugs.map((b, i) => convert(b, String(i)));
 }
 
+/** Filter a tree recursively — runs only when nodes or filters change */
+function filterTree(nodes: TreeNode[], filters: Record<string, string>): TreeNode[] {
+  const activeFilters = Object.entries(filters).filter(([_, val]) => val !== '' && val != null);
+  if (activeFilters.length === 0) return nodes;
+
+  const filtered: TreeNode[] = [];
+  for (const node of nodes) {
+    let nodeMatches = true;
+    for (const [key, val] of activeFilters) {
+      let nodeVal = '';
+      if (key === 'assignees') {
+        nodeVal = (node.data.assignees || []).join(' ').toLowerCase();
+      } else if (key === 'reporter') {
+        nodeVal = String(node.data.reporter || '').toLowerCase();
+      } else {
+        nodeVal = String(node.data[key] || '').toLowerCase();
+      }
+      if (!nodeVal.includes(String(val).toLowerCase())) {
+        nodeMatches = false;
+        break;
+      }
+    }
+
+    let filteredChildren: TreeNode[] = [];
+    if (node.children?.length) {
+      filteredChildren = filterTree(node.children, filters);
+    }
+
+    if (nodeMatches || filteredChildren.length > 0) {
+      filtered.push({
+        ...node,
+        children: filteredChildren,
+        expanded: filteredChildren.length > 0 ? true : node.expanded,
+      });
+    }
+  }
+  return filtered;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 const ProjectDetailPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
@@ -77,14 +116,12 @@ const ProjectDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useRef<Toast>(null);
 
-  const { projects } = useProjects();
-  const [project, setProject] = useState(() => projects.find((p) => p.id === id));
-
-  // Keep local project in sync when projects list updates
-  React.useEffect(() => {
-    const found = projects.find((p) => p.id === id);
-    if (found) setProject(found);
-  }, [projects, id]);
+  // ── Project from shared context — NO additional API call ──────────────────
+  const { projects } = useProjectsContext();
+  const project = useMemo(
+    () => projects.find((p) => p.id === id) ?? null,
+    [projects, id],
+  );
 
   const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useTasks(id);
   const { bugs, loading: bugsLoading, createBug, updateBug, deleteBug } = useBugs(id);
@@ -108,49 +145,30 @@ const ProjectDetailPage: React.FC = () => {
   const [taskFilters, setTaskFilters] = useState({ name: '', status: '', assignees: '' });
   const [bugFilters, setBugFilters] = useState({ title: '', status: '', reporter: '' });
 
-  const allFlatTasks = flattenTasks(tasks);
-  const allFlatBugs = flattenBugs(bugs);
+  // ── Memoized derived data — prevents recomputing on every render ──────────
+  const allFlatTasks = useMemo(() => flattenTasks(tasks), [tasks]);
+  const allFlatBugs = useMemo(() => flattenBugs(bugs), [bugs]);
 
-  // ── Manual Tree Filtering ──
-  const filterTree = (nodes: TreeNode[], filters: Record<string, string>): TreeNode[] => {
-    const activeFilters = Object.entries(filters).filter(([_, val]) => val !== '' && val != null);
-    if (activeFilters.length === 0) return nodes;
+  const taskTreeNodes = useMemo(() => buildTaskTree(tasks), [tasks]);
+  const bugTreeNodes = useMemo(() => buildBugTree(bugs), [bugs]);
 
-    const filtered: TreeNode[] = [];
-    for (const node of nodes) {
-      let nodeMatches = true;
-      for (const [key, val] of activeFilters) {
-        let nodeVal = '';
-        if (key === 'assignees') {
-          nodeVal = (node.data.assignees || []).map((u: any) => u.username).join(' ').toLowerCase();
-        } else if (key === 'reporter') {
-          nodeVal = (node.data.reporter?.username || '').toLowerCase();
-        } else {
-          nodeVal = String(node.data[key] || '').toLowerCase();
-        }
-        
-        const filterVal = String(val).toLowerCase();
-        if (!nodeVal.includes(filterVal)) {
-          nodeMatches = false;
-          break;
-        }
-      }
+  // filterTree only runs when the tree data OR filters change (not on every render)
+  const filteredTaskTreeNodes = useMemo(
+    () => filterTree(taskTreeNodes, taskFilters),
+    [taskTreeNodes, taskFilters],
+  );
+  const filteredBugTreeNodes = useMemo(
+    () => filterTree(bugTreeNodes, bugFilters),
+    [bugTreeNodes, bugFilters],
+  );
 
-      let filteredChildren: TreeNode[] = [];
-      if (node.children && node.children.length > 0) {
-        filteredChildren = filterTree(node.children, filters);
-      }
-
-      if (nodeMatches || filteredChildren.length > 0) {
-        filtered.push({
-          ...node,
-          children: filteredChildren,
-          expanded: filteredChildren.length > 0 ? true : node.expanded
-        });
-      }
-    }
-    return filtered;
-  };
+  // Attachment count — memoized to avoid re-calculation on unrelated renders
+  const totalAttachments = useMemo(() => {
+    const projectCount = project?.attachments?.length ?? 0;
+    const taskCount = allFlatTasks.reduce((s, t) => s + (t.attachments?.length ?? 0), 0);
+    const bugCount = allFlatBugs.reduce((s, b) => s + (b.attachments?.length ?? 0), 0);
+    return projectCount + taskCount + bugCount;
+  }, [project, allFlatTasks, allFlatBugs]);
 
   const statusOptions = [
     { label: 'Open', value: 'open' },
@@ -159,25 +177,25 @@ const ProjectDetailPage: React.FC = () => {
   ];
 
   // ── Task dialog handlers ──
-  const openCreateTask = (parentId: number | null = null) => {
+  const openCreateTask = useCallback((parentId: number | null = null) => {
     setEditingTask(null);
     setTaskParentId(parentId);
     setTaskDialogVisible(true);
-  };
+  }, []);
 
-  const openEditTask = (task: Task) => {
+  const openEditTask = useCallback((task: Task) => {
     setEditingTask(task);
     setTaskParentId(null);
     setTaskDialogVisible(true);
-  };
+  }, []);
 
-  const openTaskAttachments = (task: Task) => {
+  const openTaskAttachments = useCallback((task: Task) => {
     setDrawerLabel(`Task: ${task.name}`);
     setDrawerAttachments(task.attachments ?? []);
     setDrawerVisible(true);
-  };
+  }, []);
 
-  const handleSaveTask = async (
+  const handleSaveTask = useCallback(async (
     data: TaskCreate | TaskUpdate,
     keepIds: number[],
     newFiles: File[],
@@ -189,9 +207,9 @@ const ProjectDetailPage: React.FC = () => {
       await createTask(data as TaskCreate);
       toast.current?.show({ severity: 'success', summary: 'Created', detail: 'Task created', life: 2500 });
     }
-  };
+  }, [editingTask, updateTask, createTask]);
 
-  const handleDeleteTask = (task: Task) => {
+  const handleDeleteTask = useCallback((task: Task) => {
     confirmDialog({
       message: `Delete task "${task.name}" and all sub-tasks?`,
       header: 'Confirm Delete',
@@ -206,28 +224,28 @@ const ProjectDetailPage: React.FC = () => {
         }
       },
     });
-  };
+  }, [deleteTask]);
 
   // ── Bug dialog handlers ──
-  const openCreateBug = (parentId: number | null = null) => {
+  const openCreateBug = useCallback((parentId: number | null = null) => {
     setEditingBug(null);
     setBugParentId(parentId);
     setBugDialogVisible(true);
-  };
+  }, []);
 
-  const openEditBug = (bug: Bug) => {
+  const openEditBug = useCallback((bug: Bug) => {
     setEditingBug(bug);
     setBugParentId(null);
     setBugDialogVisible(true);
-  };
+  }, []);
 
-  const openBugAttachments = (bug: Bug) => {
+  const openBugAttachments = useCallback((bug: Bug) => {
     setDrawerLabel(`Bug: ${bug.title}`);
     setDrawerAttachments(bug.attachments ?? []);
     setDrawerVisible(true);
-  };
+  }, []);
 
-  const handleSaveBug = async (
+  const handleSaveBug = useCallback(async (
     data: BugCreate | BugUpdate,
     keepIds: number[],
     newFiles: File[],
@@ -239,9 +257,9 @@ const ProjectDetailPage: React.FC = () => {
       await createBug(data as BugCreate);
       toast.current?.show({ severity: 'success', summary: 'Created', detail: 'Bug reported', life: 2500 });
     }
-  };
+  }, [editingBug, updateBug, createBug]);
 
-  const handleDeleteBug = (bug: Bug) => {
+  const handleDeleteBug = useCallback((bug: Bug) => {
     confirmDialog({
       message: `Delete bug "${bug.title}" and all sub-bugs?`,
       header: 'Confirm Delete',
@@ -256,24 +274,33 @@ const ProjectDetailPage: React.FC = () => {
         }
       },
     });
-  };
+  }, [deleteBug]);
 
   // ── Column templates — Tasks ──
-  const taskNameTemplate = (node: TreeNode) => {
+  const taskNameTemplate = useCallback((node: TreeNode) => {
     const task = node.data as Task;
     const depth = (node.key as string).split('-').length - 1;
+    
+    const subtasks = task.subtasks || [];
+    const totalSubtasks = subtasks.length;
+    const completedSubtasks = subtasks.filter(s => s.status === 'resolved' || s.status === 'closed').length;
+    const progressText = totalSubtasks > 0 ? ` (${completedSubtasks}/${totalSubtasks})` : '';
+
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontWeight: depth === 0 ? 600 : 400 }}>{task.name}</span>
+        <span style={{ fontWeight: depth === 0 ? 600 : 400 }}>
+          {task.name}
+          <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{progressText}</span>
+        </span>
         {task.attachments?.length > 0 && (
           <Tag value={String(task.attachments.length)} icon="pi pi-paperclip"
             style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', fontSize: '10px', padding: '1px 6px' }} />
         )}
       </div>
     );
-  };
+  }, []);
 
-  const taskAssigneesTemplate = (node: TreeNode) => {
+  const taskAssigneesTemplate = useCallback((node: TreeNode) => {
     const task = node.data as Task;
     const assignees = task.assignees ?? [];
     if (!assignees.length) return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Unassigned</span>;
@@ -290,16 +317,20 @@ const ProjectDetailPage: React.FC = () => {
         )}
       </div>
     );
-  };
+  }, []);
 
-  const taskStatusTemplate = (node: TreeNode) => <StatusBadge status={(node.data as Task).status} />;
+  const taskStatusTemplate = useCallback(
+    (node: TreeNode) => <StatusBadge status={(node.data as Task).status} />, []
+  );
 
-  const dateTemplate = (val: string | null) =>
+  const dateTemplate = useCallback((val: string | null) =>
     val ? <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{val}</span>
-      : <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>;
+      : <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>,
+  []);
 
-  const taskActionsTemplate = (node: TreeNode) => {
+  const taskActionsTemplate = useCallback((node: TreeNode) => {
     const task = node.data as Task;
+    const depth = (node.key as string).split('-').length - 1;
     const hasAttachments = (task.attachments?.length ?? 0) > 0;
     return (
       <div className="action-btn-group" style={{ minWidth: 136 }}>
@@ -314,13 +345,15 @@ const ProjectDetailPage: React.FC = () => {
             pointerEvents: hasAttachments ? 'auto' : 'none',
           }}
         />
-        <Button
-          icon="pi pi-sitemap"
-          className="p-button-text p-button-sm"
-          tooltip="Add sub-task"
-          onClick={() => openCreateTask(task.id)}
-          style={{ color: 'var(--text-secondary)' }}
-        />
+        {depth === 0 && (
+          <Button
+            icon="pi pi-sitemap"
+            className="p-button-text p-button-sm"
+            tooltip="Add sub-task"
+            onClick={() => openCreateTask(task.id)}
+            style={{ color: 'var(--text-secondary)' }}
+          />
+        )}
         <Button
           icon="pi pi-pencil"
           className="p-button-text p-button-sm"
@@ -336,10 +369,10 @@ const ProjectDetailPage: React.FC = () => {
         />
       </div>
     );
-  };
+  }, [openTaskAttachments, openCreateTask, openEditTask, handleDeleteTask]);
 
   // ── Column templates — Bugs ──
-  const bugTitleTemplate = (node: TreeNode) => {
+  const bugTitleTemplate = useCallback((node: TreeNode) => {
     const bug = node.data as Bug;
     const depth = (node.key as string).split('-').length - 1;
     return (
@@ -352,14 +385,14 @@ const ProjectDetailPage: React.FC = () => {
         )}
       </div>
     );
-  };
+  }, []);
 
-  const bugReporterTemplate = (node: TreeNode) => {
+  const bugReporterTemplate = useCallback((node: TreeNode) => {
     const bug = node.data as Bug;
     return <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{bug.reporter}</span>;
-  };
+  }, []);
 
-  const bugLinkedTaskTemplate = (node: TreeNode) => {
+  const bugLinkedTaskTemplate = useCallback((node: TreeNode) => {
     const bug = node.data as Bug;
     if (!bug.task_id) return <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>;
     const task = allFlatTasks.find((t) => t.id === bug.task_id);
@@ -371,12 +404,15 @@ const ProjectDetailPage: React.FC = () => {
         {task?.name ?? `Task #${bug.task_id}`}
       </span>
     );
-  };
+  }, [allFlatTasks]);
 
-  const bugStatusTemplate = (node: TreeNode) => <StatusBadge status={(node.data as Bug).status} />;
+  const bugStatusTemplate = useCallback(
+    (node: TreeNode) => <StatusBadge status={(node.data as Bug).status} />, []
+  );
 
-  const bugActionsTemplate = (node: TreeNode) => {
+  const bugActionsTemplate = useCallback((node: TreeNode) => {
     const bug = node.data as Bug;
+    const depth = (node.key as string).split('-').length - 1;
     const hasAttachments = (bug.attachments?.length ?? 0) > 0;
     return (
       <div className="action-btn-group" style={{ minWidth: 136 }}>
@@ -391,13 +427,15 @@ const ProjectDetailPage: React.FC = () => {
             pointerEvents: hasAttachments ? 'auto' : 'none',
           }}
         />
-        <Button
-          icon="pi pi-sitemap"
-          className="p-button-text p-button-sm"
-          tooltip="Add sub-bug"
-          onClick={() => openCreateBug(bug.id)}
-          style={{ color: 'var(--text-secondary)' }}
-        />
+        {depth === 0 && (
+          <Button
+            icon="pi pi-sitemap"
+            className="p-button-text p-button-sm"
+            tooltip="Add sub-bug"
+            onClick={() => openCreateBug(bug.id)}
+            style={{ color: 'var(--text-secondary)' }}
+          />
+        )}
         <Button
           icon="pi pi-pencil"
           className="p-button-text p-button-sm"
@@ -413,18 +451,9 @@ const ProjectDetailPage: React.FC = () => {
         />
       </div>
     );
-  };
-
-  const taskTreeNodes = buildTaskTree(tasks);
-  const bugTreeNodes = buildBugTree(bugs);
-
-  const filteredTaskTreeNodes = filterTree(taskTreeNodes, taskFilters);
-  const filteredBugTreeNodes = filterTree(bugTreeNodes, bugFilters);
+  }, [openBugAttachments, openCreateBug, openEditBug, handleDeleteBug]);
 
   const projectAttachments = project?.attachments ?? [];
-  const totalAttachments = projectAttachments.length
-    + allFlatTasks.reduce((s, t) => s + (t.attachments?.length ?? 0), 0)
-    + allFlatBugs.reduce((s, b) => s + (b.attachments?.length ?? 0), 0);
 
   return (
     <>
@@ -517,30 +546,30 @@ const ProjectDetailPage: React.FC = () => {
               <div className="custom-filter-bar fade-in">
                 <div className="custom-filter-item">
                   <span className="custom-filter-label">Task Name</span>
-                  <InputText 
-                    placeholder="Search name..." 
+                  <InputText
+                    placeholder="Search name..."
                     className="custom-filter-input"
-                    value={taskFilters.name} 
-                    onChange={(e) => setTaskFilters({ ...taskFilters, name: e.target.value })} 
+                    value={taskFilters.name}
+                    onChange={(e) => setTaskFilters((prev) => ({ ...prev, name: e.target.value }))}
                   />
                 </div>
                 <div className="custom-filter-item custom-filter-dropdown" style={{ maxWidth: '180px' }}>
                   <span className="custom-filter-label">Status</span>
-                  <Dropdown 
-                    options={statusOptions} 
-                    value={taskFilters.status} 
-                    onChange={(e) => setTaskFilters({ ...taskFilters, status: e.value })} 
-                    placeholder="Filter status" 
+                  <Dropdown
+                    options={statusOptions}
+                    value={taskFilters.status}
+                    onChange={(e) => setTaskFilters((prev) => ({ ...prev, status: e.value ?? '' }))}
+                    placeholder="Filter status"
                     showClear
                   />
                 </div>
                 <div className="custom-filter-item">
                   <span className="custom-filter-label">Assignees</span>
-                  <InputText 
-                    placeholder="Search user..." 
+                  <InputText
+                    placeholder="Search user..."
                     className="custom-filter-input"
-                    value={taskFilters.assignees} 
-                    onChange={(e) => setTaskFilters({ ...taskFilters, assignees: e.target.value })} 
+                    value={taskFilters.assignees}
+                    onChange={(e) => setTaskFilters((prev) => ({ ...prev, assignees: e.target.value }))}
                   />
                 </div>
               </div>
@@ -591,30 +620,30 @@ const ProjectDetailPage: React.FC = () => {
               <div className="custom-filter-bar fade-in">
                 <div className="custom-filter-item">
                   <span className="custom-filter-label">Bug Title</span>
-                  <InputText 
-                    placeholder="Search title..." 
+                  <InputText
+                    placeholder="Search title..."
                     className="custom-filter-input"
-                    value={bugFilters.title} 
-                    onChange={(e) => setBugFilters({ ...bugFilters, title: e.target.value })} 
+                    value={bugFilters.title}
+                    onChange={(e) => setBugFilters((prev) => ({ ...prev, title: e.target.value }))}
                   />
                 </div>
                 <div className="custom-filter-item custom-filter-dropdown" style={{ maxWidth: '180px' }}>
                   <span className="custom-filter-label">Status</span>
-                  <Dropdown 
-                    options={statusOptions} 
-                    value={bugFilters.status} 
-                    onChange={(e) => setBugFilters({ ...bugFilters, status: e.value })} 
-                    placeholder="Filter status" 
+                  <Dropdown
+                    options={statusOptions}
+                    value={bugFilters.status}
+                    onChange={(e) => setBugFilters((prev) => ({ ...prev, status: e.value ?? '' }))}
+                    placeholder="Filter status"
                     showClear
                   />
                 </div>
                 <div className="custom-filter-item">
                   <span className="custom-filter-label">Reporter</span>
-                  <InputText 
-                    placeholder="Search user..." 
+                  <InputText
+                    placeholder="Search user..."
                     className="custom-filter-input"
-                    value={bugFilters.reporter} 
-                    onChange={(e) => setBugFilters({ ...bugFilters, reporter: e.target.value })} 
+                    value={bugFilters.reporter}
+                    onChange={(e) => setBugFilters((prev) => ({ ...prev, reporter: e.target.value }))}
                   />
                 </div>
               </div>
@@ -650,8 +679,9 @@ const ProjectDetailPage: React.FC = () => {
                 <ProjectAttachmentsPanel
                   projectId={id}
                   attachments={projectAttachments}
-                  onAttachmentsChange={(updated) => {
-                    if (project) setProject({ ...project, attachments: updated });
+                  onAttachmentsChange={() => {
+                    // Attachment changes are reflected via context refresh
+                    // (ProjectAttachmentsPanel handles its own local state)
                   }}
                 />
               ) : (

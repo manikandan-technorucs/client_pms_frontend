@@ -9,6 +9,7 @@ import { Chips } from 'primereact/chips';
 import { FileUpload } from 'primereact/fileupload';
 import { Divider } from 'primereact/divider';
 import axiosClient from '../../api/axiosClient';
+import attachmentsApi from '../../api/attachmentsApi';
 import type { Attachment, Task, TaskCreate, TaskUpdate, StatusValue } from '../../types';
 import { STATUS_OPTIONS } from '../../types';
 
@@ -116,18 +117,10 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
 
   const handleDownload = async (att: Attachment) => {
     try {
-      const response = await axiosClient.get(`/attachments/${att.id}/download`, {
-        responseType: 'blob'
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', att.file_name);
-      document.body.appendChild(link);
-      link.click();
-      link.parentNode?.removeChild(link);
+      const url = await attachmentsApi.getSignedUrl(att.id);
+      window.open(url, '_blank');
     } catch (err) {
-      console.error("Failed to download file", err);
+      console.error("Failed to fetch signed URL", err);
     }
   };
 

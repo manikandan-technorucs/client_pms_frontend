@@ -1,16 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import projectsApi from '../../api/projectsApi';
 import { useAuth } from '../../context/AuthContext';
+
+const STATS_TTL_MS = 60_000; // Refresh stats every 60 seconds
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [stats, setStats] = useState({ totalTasks: 0, totalBugs: 0 });
   const navigate = useNavigate();
   const { logout } = useAuth();
 
-  useEffect(() => {
+  // ── Stats with 60s auto-refresh ──────────────────────────────────────────
+  // Stats are cached server-side for 60s (Cache-Control header) so this
+  // interval mainly ensures the sidebar stays in sync after CRUD operations.
+  const fetchStats = useCallback(() => {
     projectsApi.getStats().then(setStats).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    fetchStats(); // immediate fetch on mount
+    const intervalId = setInterval(fetchStats, STATS_TTL_MS);
+    return () => clearInterval(intervalId); // cleanup on unmount
+  }, [fetchStats]);
 
   return (
     <div className="app-shell">

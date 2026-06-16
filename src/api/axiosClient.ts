@@ -1,11 +1,9 @@
 import axios from 'axios';
 
-/**
- * Base Axios instance pre-configured for the TechnoRUCS PMS API.
- * Uses Vite proxy in dev so baseURL is relative.
- */
+
 const axiosClient = axios.create({
-  baseURL: '/api/v1',
+  // Use absolute URL from environment if set (e.g. production), fallback to Vite proxy path
+  baseURL: import.meta.env.VITE_API_BASE_URL || '/api/v1',
   timeout: 30000,
   headers: {
     'Accept': 'application/json',

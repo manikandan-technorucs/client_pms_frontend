@@ -25,7 +25,12 @@ const attachmentsApi = {
   deleteFromProject: (projectId: number, attachmentId: number): Promise<void> =>
     axiosClient
       .delete(`/projects/${projectId}/attachments/${attachmentId}`)
-      .then(() => undefined),
+      .then((res) => res.data),
+
+  getSignedUrl: async (attachmentId: number): Promise<string> => {
+    const { data } = await axiosClient.get<{url: string}>(`/attachments/${attachmentId}/url`);
+    return data.url;
+  },
 };
 
 export default attachmentsApi;

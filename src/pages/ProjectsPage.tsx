@@ -13,7 +13,7 @@ import { FilterMatchMode } from 'primereact/api';
 import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 import ProjectDialog from '../components/projects/ProjectDialog';
-import { useProjects } from '../hooks/useProjects';
+import { useProjectsContext } from '../context/ProjectsContext';
 import type { Project, ProjectCreate, ProjectUpdate } from '../types';
 
 // ── Stats helpers ─────────────────────────────────────────────────────────────
@@ -27,7 +27,9 @@ const STAT_ICONS: Record<string, { icon: string; color: string; bg: string }> = 
 const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
   const toast = useRef<Toast>(null);
-  const { projects, loading, createProject, updateProject, deleteProject } = useProjects();
+
+  // ── Single shared fetch from context — NO duplicate API call ──────────────
+  const { projects, loading, createProject, updateProject, deleteProject } = useProjectsContext();
 
   const [dialogVisible, setDialogVisible] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
@@ -43,7 +45,7 @@ const ProjectsPage: React.FC = () => {
     { label: 'Resolved', value: 'resolved' }
   ];
 
-  // ── Stats ──
+  // ── Stats computed from context data — no additional API call needed ──
   const stats = {
     total: projects.length,
     open: projects.filter((p) => p.status === 'open').length,
@@ -149,7 +151,6 @@ const ProjectsPage: React.FC = () => {
       <PageHeader
         title="Projects"
         subtitle={`${projects.length} project${projects.length !== 1 ? 's' : ''} in workspace`}
-
       />
 
       <div style={{ padding: '0 24px 24px' }}>

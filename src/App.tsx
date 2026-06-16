@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ProjectsProvider } from './context/ProjectsContext';
 import Layout from './components/ui/Layout';
 import ProjectsPage from './pages/ProjectsPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
@@ -22,14 +23,19 @@ const App: React.FC = () => {
             path="/*"
             element={
               <PrivateRoute>
-                <Layout>
-                  <Routes>
-                    <Route path="/" element={<Navigate to="/projects" replace />} />
-                    <Route path="/projects" element={<ProjectsPage />} />
-                    <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
-                    <Route path="*" element={<NotFoundPage />} />
-                  </Routes>
-                </Layout>
+                {/* ProjectsProvider wraps the entire authenticated app so
+                    Layout, ProjectsPage, and ProjectDetailPage all share ONE
+                    fetch — eliminating 3× duplicate GET /projects/ calls. */}
+                <ProjectsProvider>
+                  <Layout>
+                    <Routes>
+                      <Route path="/" element={<Navigate to="/projects" replace />} />
+                      <Route path="/projects" element={<ProjectsPage />} />
+                      <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+                      <Route path="*" element={<NotFoundPage />} />
+                    </Routes>
+                  </Layout>
+                </ProjectsProvider>
               </PrivateRoute>
             }
           />

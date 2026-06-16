@@ -18,7 +18,7 @@ const projectsApi = {
     if (data.start_date) fd.append('start_date', data.start_date);
     if (data.end_date) fd.append('end_date', data.end_date);
     if (data.status) fd.append('status', data.status);
-    
+
     newFiles.forEach((file) => fd.append('new_files', file));
 
     return axiosClient
@@ -40,7 +40,7 @@ const projectsApi = {
     if (data.start_date !== undefined) fd.append('start_date', data.start_date || '');
     if (data.end_date !== undefined) fd.append('end_date', data.end_date || '');
     if (data.status !== undefined) fd.append('status', data.status);
-    
+
     fd.append('keep_attachment_ids', JSON.stringify(keepIds));
     newFiles.forEach((file) => fd.append('new_files', file));
 

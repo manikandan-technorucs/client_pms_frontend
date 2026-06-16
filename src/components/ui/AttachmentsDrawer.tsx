@@ -1,6 +1,7 @@
 import React from 'react';
 import { Sidebar } from 'primereact/sidebar';
 import { Button } from 'primereact/button';
+import attachmentsApi from '../../api/attachmentsApi';
 import type { Attachment } from '../../types';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -135,20 +136,21 @@ const AttachmentsDrawer: React.FC<AttachmentsDrawerProps> = ({
                 </div>
 
                 {/* Download button */}
-                <a
-                  href={`/uploads/${att.file_path.split('/').pop() ?? att.file_name}`}
-                  download={att.file_name}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{ flexShrink: 0 }}
-                  title="Download file"
-                >
+                <div style={{ flexShrink: 0 }} title="Download file">
                   <Button
                     icon="pi pi-download"
                     className="p-button-text p-button-sm"
                     style={{ color: 'var(--accent)', padding: '6px 8px' }}
+                    onClick={async (e) => {
+                      try {
+                        const url = await attachmentsApi.getSignedUrl(att.id);
+                        window.open(url, '_blank');
+                      } catch (err) {
+                        console.error('Failed to get signed url', err);
+                      }
+                    }}
                   />
-                </a>
+                </div>
               </div>
             ))}
           </div>

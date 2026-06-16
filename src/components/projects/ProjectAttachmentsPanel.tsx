@@ -172,7 +172,6 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
             gap: 12,
           }}>
             {attachments.map((att) => {
-              const fileUrl = `/uploads/${att.file_path.split(/[\\/]/).pop() ?? att.file_name}`;
               return (
                 <div
                   key={att.id}
@@ -243,10 +242,16 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
 
                   {/* Download link */}
                   <a
-                    href={fileUrl}
-                    download={att.file_name}
-                    target="_blank"
-                    rel="noreferrer"
+                    href="#"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      try {
+                        const url = await attachmentsApi.getSignedUrl(att.id);
+                        window.open(url, '_blank');
+                      } catch (err) {
+                        console.error('Failed to get signed url', err);
+                      }
+                    }}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 4,
                       color: 'var(--accent)', fontSize: 11, textDecoration: 'none',
