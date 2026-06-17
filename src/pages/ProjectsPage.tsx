@@ -52,7 +52,7 @@ const ProjectsPage: React.FC = () => {
     { label: 'Resolved', value: 'resolved' }
   ];
 
-  // ── Stats computed from context data — no additional API call needed ──
+
   const stats = {
     total: projects.length,
     open: projects.filter((p) => p.status === 'open').length,
@@ -108,6 +108,15 @@ const ProjectsPage: React.FC = () => {
 
   const dateTemplate = (val: string | null) =>
     val ? <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{val}</span> : <span style={{ color: 'var(--text-muted)' }}>—</span>;
+
+  const descTemplate = (row: Project) => {
+    if (!row.description) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    return (
+      <span title={row.description} style={{ color: 'var(--text-secondary)', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '250px' }}>
+        {row.description}
+      </span>
+    );
+  };
 
   const attachTemplate = (row: Project) => (
     <Tag
@@ -193,61 +202,62 @@ const ProjectsPage: React.FC = () => {
           />
           <div style={{ padding: '16px 16px 0' }}>
             {/* Custom Sleek Filter Bar */}
-        <div className="custom-filter-bar fade-in">
-          <div className="custom-filter-item">
-            <span className="custom-filter-label">Project Name</span>
-            <InputText 
-              placeholder="Search by name..." 
-              className="custom-filter-input"
-              value={filters.name.value || ''} 
-              onChange={(e) => {
-                const val = e.target.value;
-                setFilters({ ...filters, name: { value: val, matchMode: FilterMatchMode.CONTAINS } });
-              }} 
-            />
-          </div>
-          <div className="custom-filter-item custom-filter-dropdown" style={{ maxWidth: '200px' }}>
-            <span className="custom-filter-label">Status</span>
-            <Dropdown 
-              options={statusOptions} 
-              value={filters.status.value} 
-              onChange={(e) => setFilters({ ...filters, status: { value: e.value, matchMode: FilterMatchMode.EQUALS } })} 
-              placeholder="Filter status" 
-              showClear
-            />
-          </div>
-        </div>
-
-        <div className="table-card">
-          <DataTable
-            value={projects}
-            loading={loading}
-            filters={filters}
-            paginator
-            rows={10}
-            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-            sortMode="multiple"
-            emptyMessage={
-              <div className="empty-state">
-                <i className="pi pi-briefcase" />
-                <p>No projects yet — create your first one!</p>
+            <div className="custom-filter-bar fade-in">
+              <div className="custom-filter-item">
+                <span className="custom-filter-label">Project Name</span>
+                <InputText
+                  placeholder="Search by name..."
+                  className="custom-filter-input"
+                  value={filters.name.value || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFilters({ ...filters, name: { value: val, matchMode: FilterMatchMode.CONTAINS } });
+                  }}
+                />
               </div>
-            }
-            style={{ borderRadius: '0 0 10px 10px' }}
-            onRowDoubleClick={(e) => openDetail(e.data as Project)}
-            rowClassName={() => ({ 'cursor-pointer': true })}
-          >
-            <Column field="id" header="ID" sortable style={{ width: '60px', color: 'var(--text-muted)', fontSize: '12px' }} />
-            <Column field="name" header="Project Name" sortable body={nameTemplate} style={{ minWidth: '200px' }} />
-            <Column field="status" header="Status" sortable body={statusTemplate} style={{ width: '130px' }} />
-            <Column field="start_date" header="Start" sortable body={(r) => dateTemplate(r.start_date)} style={{ width: '110px' }} />
-            <Column field="end_date" header="End" sortable body={(r) => dateTemplate(r.end_date)} style={{ width: '110px' }} />
-            <Column header="Files" body={attachTemplate} style={{ width: '70px' }} />
-            <Column header="Actions" body={actionsTemplate} style={{ width: '120px' }} />
-          </DataTable>
+              <div className="custom-filter-item custom-filter-dropdown" style={{ maxWidth: '200px' }}>
+                <span className="custom-filter-label">Status</span>
+                <Dropdown
+                  options={statusOptions}
+                  value={filters.status.value}
+                  onChange={(e) => setFilters({ ...filters, status: { value: e.value, matchMode: FilterMatchMode.EQUALS } })}
+                  placeholder="Filter status"
+                  showClear
+                />
+              </div>
+            </div>
+
+            <div className="table-card">
+              <DataTable
+                value={projects}
+                loading={loading}
+                filters={filters}
+                paginator
+                rows={10}
+                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                sortMode="multiple"
+                emptyMessage={
+                  <div className="empty-state">
+                    <i className="pi pi-briefcase" />
+                    <p>No projects yet — create your first one!</p>
+                  </div>
+                }
+                style={{ borderRadius: '0 0 10px 10px' }}
+                onRowDoubleClick={(e) => openDetail(e.data as Project)}
+                rowClassName={() => ({ 'cursor-pointer': true })}
+              >
+                <Column field="id" header="ID" sortable style={{ width: '60px', color: 'var(--text-muted)', fontSize: '12px' }} />
+                <Column field="name" header="Project Name" sortable body={nameTemplate} style={{ minWidth: '180px' }} />
+                <Column field="description" header="Description" body={descTemplate} style={{ minWidth: '150px' }} />
+                <Column field="status" header="Status" sortable body={statusTemplate} style={{ width: '130px' }} />
+                <Column field="start_date" header="Start" sortable body={(r) => dateTemplate(r.start_date)} style={{ width: '110px' }} />
+                <Column field="end_date" header="End" sortable body={(r) => dateTemplate(r.end_date)} style={{ width: '110px' }} />
+                <Column header="Files" body={attachTemplate} style={{ width: '70px' }} />
+                <Column header="Actions" body={actionsTemplate} style={{ width: '120px' }} />
+              </DataTable>
+            </div>
+          </div>
         </div>
-      </div>
-      </div>
       </div>
 
       <ProjectDialog

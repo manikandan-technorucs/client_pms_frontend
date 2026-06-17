@@ -371,6 +371,16 @@ const ProjectDetailPage: React.FC = () => {
       : <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>,
   []);
 
+  const taskDescTemplate = useCallback((node: TreeNode) => {
+    const task = node.data as Task;
+    if (!task.description) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    return (
+      <span title={task.description} style={{ color: 'var(--text-secondary)', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '250px' }}>
+        {task.description}
+      </span>
+    );
+  }, []);
+
   const taskActionsTemplate = useCallback((node: TreeNode) => {
     const task = node.data as Task;
     const depth = (node.key as string).split('-').length - 1;
@@ -440,6 +450,16 @@ const ProjectDetailPage: React.FC = () => {
   const bugReporterTemplate = useCallback((node: TreeNode) => {
     const bug = node.data as Bug;
     return <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{bug.reporter}</span>;
+  }, []);
+
+  const bugDescTemplate = useCallback((node: TreeNode) => {
+    const bug = node.data as Bug;
+    if (!bug.description) return <span style={{ color: 'var(--text-muted)' }}>—</span>;
+    return (
+      <span title={bug.description} style={{ color: 'var(--text-secondary)', fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '250px' }}>
+        {bug.description}
+      </span>
+    );
   }, []);
 
   const bugLinkedTaskTemplate = useCallback((node: TreeNode) => {
@@ -647,9 +667,10 @@ const ProjectDetailPage: React.FC = () => {
                   </div>
                 }
               >
-                <Column field="name" header="Task Name" body={taskNameTemplate} expander style={{ width: '280px' }} />
+                <Column field="name" header="Task Name" body={taskNameTemplate} expander style={{ width: '250px' }} />
+                <Column field="description" header="Description" body={taskDescTemplate} style={{ minWidth: '150px' }} />
                 <Column field="status" header="Status" body={taskStatusTemplate} style={{ width: '130px' }} />
-                <Column field="assignees" header="Assignees" body={taskAssigneesTemplate} style={{ width: '200px' }} />
+                <Column field="assignees" header="Assignees" body={taskAssigneesTemplate} style={{ width: '150px' }} />
                 <Column header="Start" body={(n) => dateTemplate((n.data as Task).start_date)} style={{ width: '110px' }} />
                 <Column header="End" body={(n) => dateTemplate((n.data as Task).end_date)} style={{ width: '110px' }} />
                 <Column header="Actions" body={taskActionsTemplate} style={{ width: '150px' }} />
@@ -724,7 +745,8 @@ const ProjectDetailPage: React.FC = () => {
                   </div>
                 }
               >
-                <Column field="title" header="Bug Title" body={bugTitleTemplate} expander style={{ width: '260px' }} />
+                <Column field="title" header="Bug Title" body={bugTitleTemplate} expander style={{ width: '250px' }} />
+                <Column field="description" header="Description" body={bugDescTemplate} style={{ minWidth: '150px' }} />
                 <Column field="status" header="Status" body={bugStatusTemplate} style={{ width: '130px' }} />
                 <Column field="reporter" header="Reporter" body={bugReporterTemplate} style={{ width: '130px' }} />
                 <Column header="Linked Task" body={bugLinkedTaskTemplate} style={{ width: '180px' }} />
