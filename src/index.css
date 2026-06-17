@@ -291,6 +291,21 @@ html, body, #root {
   box-sizing: border-box !important;
 }
 
+/* Double-click-to-preview hint — applied to task names, bug titles, and project name cells */
+.dbl-click-cell {
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.dbl-click-cell:hover {
+  color: var(--accent) !important;
+  text-decoration: underline dotted 1px;
+  text-underline-offset: 3px;
+}
+
+/* PrimeReact DataTable row double-click cursor */
+.p-datatable .p-datatable-tbody > tr.cursor-pointer {
+  cursor: pointer;
+}
 
 .p-dialog {
   background: var(--bg-surface) !important;

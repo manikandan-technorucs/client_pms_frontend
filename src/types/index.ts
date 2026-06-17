@@ -28,6 +28,11 @@ export interface Project {
   end_date: string | null;
   status: StatusValue;
   attachments: Attachment[];
+  // Audit fields (populated after backend migration)
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
 }
 
 export interface ProjectCreate {
@@ -59,6 +64,11 @@ export interface Task {
   status: StatusValue;
   attachments: Attachment[];
   subtasks: Task[];
+  // Audit fields
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
 }
 
 export interface TaskCreate {
@@ -97,6 +107,11 @@ export interface Bug {
   status: StatusValue;
   attachments: Attachment[];
   sub_bugs: Bug[];
+  // Audit fields
+  created_at?: string | null;
+  updated_at?: string | null;
+  created_by?: string | null;
+  updated_by?: string | null;
 }
 
 export interface BugCreate {

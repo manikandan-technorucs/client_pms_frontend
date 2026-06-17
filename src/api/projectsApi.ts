@@ -22,9 +22,7 @@ const projectsApi = {
     newFiles.forEach((file) => fd.append('new_files', file));
 
     return axiosClient
-      .post<Project>('/projects/', fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .post<Project>('/projects/', fd)
       .then((r) => r.data);
   },
 
@@ -45,9 +43,7 @@ const projectsApi = {
     newFiles.forEach((file) => fd.append('new_files', file));
 
     return axiosClient
-      .put<Project>(`/projects/${id}`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .put<Project>(`/projects/${id}`, fd)
       .then((r) => r.data);
   },
 

@@ -51,9 +51,7 @@ const bugsApi = {
     newFiles.forEach((file) => fd.append('new_files', file, file.name));
 
     return axiosClient
-      .put<Bug>(`/bugs/${id}`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .put<Bug>(`/bugs/${id}`, fd)
       .then((r) => r.data);
   },
 

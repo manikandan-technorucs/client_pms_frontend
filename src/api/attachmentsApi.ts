@@ -8,15 +8,11 @@ const attachmentsApi = {
     const fd = new FormData();
     files.forEach((file) => fd.append('new_files', file, file.name));
     return axiosClient
-      .post<Attachment[]>(`/projects/${projectId}/attachments`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .post<Attachment[]>(`/projects/${projectId}/attachments`, fd)
       .then((r) => r.data);
   },
 
-  /**
-   * Delete a single attachment from a project.
-   */
+
   deleteFromProject: (projectId: number, attachmentId: number): Promise<void> =>
     axiosClient
       .delete(`/projects/${projectId}/attachments/${attachmentId}`)

@@ -13,8 +13,10 @@ import { FilterMatchMode } from 'primereact/api';
 import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 import ProjectDialog from '../components/projects/ProjectDialog';
+import DetailViewModal from '../components/ui/DetailViewModal';
 import { useProjectsContext } from '../context/ProjectsContext';
 import type { Project, ProjectCreate, ProjectUpdate } from '../types';
+import type { DetailItem } from '../components/ui/DetailViewModal';
 
 // ── Stats helpers ─────────────────────────────────────────────────────────────
 const STAT_ICONS: Record<string, { icon: string; color: string; bg: string }> = {
@@ -33,6 +35,11 @@ const ProjectsPage: React.FC = () => {
 
   const [dialogVisible, setDialogVisible] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | null>(null);
+
+  // ── Detail view modal (double-click) ──
+  const [detailItem, setDetailItem] = useState<DetailItem | null>(null);
+  const openDetail = (p: Project) => setDetailItem({ type: 'project', data: p });
+  const closeDetail = () => setDetailItem(null);
 
   const [filters, setFilters] = useState<any>({
     name: { value: '', matchMode: FilterMatchMode.CONTAINS },
@@ -87,8 +94,11 @@ const ProjectsPage: React.FC = () => {
   // ── Column templates ──
   const nameTemplate = (row: Project) => (
     <span
-      style={{ cursor: 'pointer', color: 'var(--accent)', fontWeight: 600 }}
+      className="dbl-click-cell"
+      style={{ color: 'var(--accent)', fontWeight: 600 }}
       onClick={() => navigate(`/projects/${row.id}`)}
+      onDoubleClick={(e) => { e.stopPropagation(); openDetail(row); }}
+      title="Click to open · Double-click for details"
     >
       {row.name}
     </span>
@@ -224,6 +234,8 @@ const ProjectsPage: React.FC = () => {
               </div>
             }
             style={{ borderRadius: '0 0 10px 10px' }}
+            onRowDoubleClick={(e) => openDetail(e.data as Project)}
+            rowClassName={() => ({ 'cursor-pointer': true })}
           >
             <Column field="id" header="ID" sortable style={{ width: '60px', color: 'var(--text-muted)', fontSize: '12px' }} />
             <Column field="name" header="Project Name" sortable body={nameTemplate} style={{ minWidth: '200px' }} />
@@ -243,6 +255,12 @@ const ProjectsPage: React.FC = () => {
         project={editingProject}
         onHide={() => setDialogVisible(false)}
         onSave={handleSave}
+      />
+
+      <DetailViewModal
+        item={detailItem}
+        onHide={closeDetail}
+        onEdit={detailItem ? () => openEdit(detailItem.data as Project) : undefined}
       />
     </>
   );

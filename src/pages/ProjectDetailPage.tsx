@@ -16,6 +16,7 @@ import TaskDialog from '../components/tasks/TaskDialog';
 import BugDialog from '../components/bugs/BugDialog';
 import AttachmentsDrawer from '../components/ui/AttachmentsDrawer';
 import ProjectAttachmentsPanel from '../components/projects/ProjectAttachmentsPanel';
+import DetailViewModal from '../components/ui/DetailViewModal';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useTasks } from '../hooks/useTasks';
 import { useBugs } from '../hooks/useBugs';
@@ -24,6 +25,7 @@ import type {
   Bug, BugCreate, BugUpdate,
   Attachment,
 } from '../types';
+import type { DetailItem } from '../components/ui/DetailViewModal';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 /** Flatten a task tree into a flat list (for parent selector) */
@@ -141,6 +143,10 @@ const ProjectDetailPage: React.FC = () => {
   const [drawerLabel, setDrawerLabel] = useState('');
   const [drawerAttachments, setDrawerAttachments] = useState<Attachment[]>([]);
 
+  // ── Detail view modal state (double-click) ── callbacks defined after memos
+  const [detailItem, setDetailItem] = useState<DetailItem | null>(null);
+  const closeDetail = () => setDetailItem(null);
+
   // ── Custom Filter States ──
   const [taskFilters, setTaskFilters] = useState({ name: '', status: '', assignees: '' });
   const [bugFilters, setBugFilters] = useState({ title: '', status: '', reporter: '' });
@@ -169,6 +175,17 @@ const ProjectDetailPage: React.FC = () => {
     const bugCount = allFlatBugs.reduce((s, b) => s + (b.attachments?.length ?? 0), 0);
     return projectCount + taskCount + bugCount;
   }, [project, allFlatTasks, allFlatBugs]);
+
+  // ── Detail view modal callbacks (need allFlatTasks — declared above) ──
+  const openTaskDetail = useCallback((task: Task) =>
+    setDetailItem({ type: 'task', data: task }),
+  []);
+  const openBugDetail = useCallback((bug: Bug) => {
+    const taskName = bug.task_id
+      ? allFlatTasks.find(t => t.id === bug.task_id)?.name ?? `Task #${bug.task_id}`
+      : undefined;
+    setDetailItem({ type: 'bug', data: bug, taskName });
+  }, [allFlatTasks]);
 
   const statusOptions = [
     { label: 'Open', value: 'open' },
@@ -288,7 +305,12 @@ const ProjectDetailPage: React.FC = () => {
 
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-        <span style={{ fontWeight: depth === 0 ? 600 : 400 }}>
+        <span
+          className="dbl-click-cell"
+          style={{ fontWeight: depth === 0 ? 600 : 400 }}
+          onDoubleClick={(e) => { e.stopPropagation(); openTaskDetail(task); }}
+          title="Double-click for details"
+        >
           {task.name}
           <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>{progressText}</span>
         </span>
@@ -298,7 +320,7 @@ const ProjectDetailPage: React.FC = () => {
         )}
       </div>
     );
-  }, []);
+  }, [openTaskDetail]);
 
   const taskAssigneesTemplate = useCallback((node: TreeNode) => {
     const task = node.data as Task;
@@ -378,14 +400,21 @@ const ProjectDetailPage: React.FC = () => {
     return (
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
         <i className="pi pi-bug" style={{ color: '#f87171', fontSize: '12px' }} />
-        <span style={{ fontWeight: depth === 0 ? 600 : 400 }}>{bug.title}</span>
+        <span
+          className="dbl-click-cell"
+          style={{ fontWeight: depth === 0 ? 600 : 400 }}
+          onDoubleClick={(e) => { e.stopPropagation(); openBugDetail(bug); }}
+          title="Double-click for details"
+        >
+          {bug.title}
+        </span>
         {bug.attachments?.length > 0 && (
           <Tag value={String(bug.attachments.length)} icon="pi pi-paperclip"
             style={{ background: 'var(--bg-elevated)', color: 'var(--text-muted)', fontSize: '10px', padding: '1px 6px' }} />
         )}
       </div>
     );
-  }, []);
+  }, [openBugDetail]);
 
   const bugReporterTemplate = useCallback((node: TreeNode) => {
     const bug = node.data as Bug;
@@ -716,6 +745,19 @@ const ProjectDetailPage: React.FC = () => {
         projectBugs={allFlatBugs}
         onHide={() => setBugDialogVisible(false)}
         onSave={handleSaveBug}
+      />
+
+      {/* ── Detail View Modal (double-click) ── */}
+      <DetailViewModal
+        item={detailItem}
+        onHide={closeDetail}
+        onEdit={
+          detailItem?.type === 'task'
+            ? () => openEditTask(detailItem.data as Task)
+            : detailItem?.type === 'bug'
+            ? () => openEditBug(detailItem.data as Bug)
+            : undefined
+        }
       />
     </>
   );

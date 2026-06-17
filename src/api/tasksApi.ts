@@ -1,15 +1,12 @@
 import axiosClient from './axiosClient';
 import type { Task, TaskCreate, TaskUpdate } from '../types';
 
-/**
- * Tasks API service — typed CRUD + advanced FormData multi-part update.
- */
+
 const tasksApi = {
-  /** List all root tasks for a project */
   list: (projectId: number): Promise<Task[]> =>
     axiosClient.get<Task[]>('/tasks/', { params: { project_id: projectId } }).then((r) => r.data),
 
-  /** Fetch a single task */
+
   get: (id: number): Promise<Task> =>
     axiosClient.get<Task>(`/tasks/${id}`).then((r) => r.data),
 
@@ -33,7 +30,7 @@ const tasksApi = {
   ): Promise<Task> => {
     const fd = new FormData();
 
-    // Append scalar fields only if defined
+
     if (data.name !== undefined) fd.append('name', data.name);
     if (data.description !== undefined) fd.append('description', data.description ?? '');
     if (data.start_date !== undefined) fd.append('start_date', data.start_date ?? '');
@@ -44,20 +41,16 @@ const tasksApi = {
       fd.append('parent_id', String(data.parent_id));
     }
 
-    // Stringified JSON array of attachment IDs to keep
     fd.append('keep_attachment_ids', JSON.stringify(keepIds));
 
     // Append each new file binary
     newFiles.forEach((file) => fd.append('new_files', file, file.name));
 
     return axiosClient
-      .put<Task>(`/tasks/${id}`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      .put<Task>(`/tasks/${id}`, fd)
       .then((r) => r.data);
   },
 
-  /** Delete a task */
   remove: (id: number): Promise<void> =>
     axiosClient.delete(`/tasks/${id}`).then(() => undefined),
 };
