@@ -150,7 +150,7 @@ const ProjectDialog: React.FC<ProjectDialogProps> = ({
       onHide={onHide}
       header={isEdit ? 'Edit Project' : 'New Project'}
       footer={footer}
-      style={{ width: '520px' }}
+      style={{ width: '95vw', maxWidth: '520px' }}
       modal
       draggable={false}
     >

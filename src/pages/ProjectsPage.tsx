@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
 import { Button } from 'primereact/button';
-import { Toolbar } from 'primereact/toolbar';
+
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog';
 import { Toast } from 'primereact/toast';
 import { Tag } from 'primereact/tag';
@@ -14,6 +14,7 @@ import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 import ProjectDialog from '../components/projects/ProjectDialog';
 import DetailViewModal from '../components/ui/DetailViewModal';
+import { useAuth } from '../context/AuthContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import type { Project, ProjectCreate, ProjectUpdate } from '../types';
 import type { DetailItem } from '../components/ui/DetailViewModal';
@@ -28,6 +29,7 @@ const STAT_ICONS: Record<string, { icon: string; color: string; bg: string }> = 
 
 const ProjectsPage: React.FC = () => {
   const navigate = useNavigate();
+  const { userRole } = useAuth();
   const toast = useRef<Toast>(null);
 
   // ── Single shared fetch from context — NO duplicate API call ──────────────
@@ -135,23 +137,27 @@ const ProjectsPage: React.FC = () => {
         onClick={() => navigate(`/projects/${row.id}`)}
         style={{ color: 'var(--accent)' }}
       />
-      <Button
-        icon="pi pi-pencil"
-        className="p-button-text p-button-sm"
-        tooltip="Edit"
-        onClick={() => openEdit(row)}
-        style={{ color: 'var(--text-secondary)' }}
-      />
-      <Button
-        icon="pi pi-trash"
-        className="p-button-text p-button-sm p-button-danger"
-        tooltip="Delete"
-        onClick={() => handleDelete(row)}
-      />
+      {userRole === 'admin' && (
+        <>
+          <Button
+            icon="pi pi-pencil"
+            className="p-button-text p-button-sm"
+            tooltip="Edit"
+            onClick={() => openEdit(row)}
+            style={{ color: 'var(--text-secondary)' }}
+          />
+          <Button
+            icon="pi pi-trash"
+            className="p-button-text p-button-sm p-button-danger"
+            tooltip="Delete"
+            onClick={() => handleDelete(row)}
+          />
+        </>
+      )}
     </div>
   );
 
-  const toolbarLeft = (
+  const toolbarLeft = userRole === 'admin' ? (
     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
       <Button
         label="New Project"
@@ -160,7 +166,7 @@ const ProjectsPage: React.FC = () => {
         style={{ background: 'var(--accent)', border: 'none' }}
       />
     </div>
-  );
+  ) : null;
 
   return (
     <>
@@ -170,6 +176,7 @@ const ProjectsPage: React.FC = () => {
       <PageHeader
         title="Projects"
         subtitle={`${projects.length} project${projects.length !== 1 ? 's' : ''} in workspace`}
+        actions={toolbarLeft}
       />
 
       <div style={{ padding: '0 24px 24px' }}>
@@ -196,10 +203,6 @@ const ProjectsPage: React.FC = () => {
 
         {/* ── DataTable ── */}
         <div className="pms-card">
-          <Toolbar
-            left={toolbarLeft}
-            style={{ padding: '12px 16px', background: 'var(--bg-elevated)', borderRadius: '10px 10px 0 0', borderBottom: '1px solid var(--border)' }}
-          />
           <div style={{ padding: '16px 16px 0' }}>
             {/* Custom Sleek Filter Bar */}
             <div className="custom-filter-bar fade-in">
@@ -228,33 +231,35 @@ const ProjectsPage: React.FC = () => {
             </div>
 
             <div className="table-card">
-              <DataTable
-                value={projects}
-                loading={loading}
-                filters={filters}
-                paginator
-                rows={10}
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-                sortMode="multiple"
-                emptyMessage={
-                  <div className="empty-state">
-                    <i className="pi pi-briefcase" />
-                    <p>No projects yet — create your first one!</p>
-                  </div>
-                }
-                style={{ borderRadius: '0 0 10px 10px' }}
-                onRowDoubleClick={(e) => openDetail(e.data as Project)}
-                rowClassName={() => ({ 'cursor-pointer': true })}
-              >
-                <Column field="id" header="ID" sortable style={{ width: '60px', color: 'var(--text-muted)', fontSize: '12px' }} />
-                <Column field="name" header="Project Name" sortable body={nameTemplate} style={{ minWidth: '180px' }} />
-                <Column field="description" header="Description" body={descTemplate} style={{ minWidth: '150px' }} />
-                <Column field="status" header="Status" sortable body={statusTemplate} style={{ width: '130px' }} />
-                <Column field="start_date" header="Start" sortable body={(r) => dateTemplate(r.start_date)} style={{ width: '110px' }} />
-                <Column field="end_date" header="End" sortable body={(r) => dateTemplate(r.end_date)} style={{ width: '110px' }} />
-                <Column header="Files" body={attachTemplate} style={{ width: '70px' }} />
-                <Column header="Actions" body={actionsTemplate} style={{ width: '120px' }} />
-              </DataTable>
+              <div style={{ width: '100%', overflowX: 'auto' }}>
+                <DataTable
+                  value={projects}
+                  loading={loading}
+                  filters={filters}
+                  paginator
+                  rows={10}
+                  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                  sortMode="multiple"
+                  emptyMessage={
+                    <div className="empty-state">
+                      <i className="pi pi-briefcase" />
+                      <p>No projects yet — create your first one!</p>
+                    </div>
+                  }
+                  style={{ borderRadius: '0 0 10px 10px', minWidth: '900px' }}
+                  onRowDoubleClick={(e) => openDetail(e.data as Project)}
+                  rowClassName={() => ({ 'cursor-pointer': true })}
+                >
+                  <Column field="id" header="ID" sortable style={{ width: '60px', color: 'var(--text-muted)', fontSize: '12px' }} />
+                  <Column field="name" header="Project Name" sortable body={nameTemplate} style={{ minWidth: '180px' }} />
+                  <Column field="description" header="Description" body={descTemplate} style={{ minWidth: '150px' }} />
+                  <Column field="status" header="Status" sortable body={statusTemplate} style={{ width: '130px' }} />
+                  <Column field="start_date" header="Start" sortable body={(r) => dateTemplate(r.start_date)} style={{ width: '110px' }} />
+                  <Column field="end_date" header="End" sortable body={(r) => dateTemplate(r.end_date)} style={{ width: '110px' }} />
+                  <Column header="Files" body={attachTemplate} style={{ width: '70px' }} />
+                  <Column header="Actions" body={actionsTemplate} style={{ width: '120px' }} />
+                </DataTable>
+              </div>
             </div>
           </div>
         </div>

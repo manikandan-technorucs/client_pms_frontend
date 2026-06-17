@@ -6,6 +6,7 @@ import type { PaginatorPageChangeEvent } from 'primereact/paginator';
 
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Toast } from 'primereact/toast';
+import { useAuth } from '../../context/AuthContext';
 import attachmentsApi from '../../api/attachmentsApi';
 import type { Attachment } from '../../types';
 
@@ -39,13 +40,10 @@ function formatBytes(bytes: number): string {
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface ProjectAttachmentsPanelProps {
   projectId: number;
-  /** Initial attachment list — mutated via API calls */
   attachments: Attachment[];
-  /** Called when attachments change so the parent can refresh project data */
   onAttachmentsChange: (updated: Attachment[]) => void;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
 const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
   projectId,
   attachments,
@@ -53,11 +51,12 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
 }) => {
   const toast = useRef<Toast>(null);
   const fileUploadRef = useRef<FileUpload>(null);
+  const { userRole } = useAuth();
 
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
 
-  // ── Pagination state ──
+
   const [first, setFirst] = useState(0);
   const [rows, setRows] = useState(10);
 
@@ -66,7 +65,7 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
     setRows(event.rows);
   };
 
-  // ── Stage files for upload ──
+
   const handleFileSelect = (e: any) => {
     const incoming = Array.from(e.files) as File[];
     setStagedFiles((prev) => {
@@ -78,7 +77,6 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
   const removeStagedFile = (name: string) =>
     setStagedFiles((prev) => prev.filter((f) => f.name !== name));
 
-  // ── Upload staged files ──
   const handleUpload = async () => {
     if (!stagedFiles.length) return;
     setUploading(true);
@@ -105,7 +103,7 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
     }
   };
 
-  // ── Delete an existing attachment ──
+
   const handleDelete = (event: React.MouseEvent, att: Attachment) => {
     confirmPopup({
       target: event.currentTarget as HTMLElement,
@@ -211,14 +209,16 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
                   }}
                 >
                   {/* Delete button */}
-                  <button
-                    className="delete-btn"
-                    onClick={(e) => handleDelete(e, att)}
-                    title="Remove attachment"
-                    type="button"
-                  >
-                    <i className="pi pi-trash" />
-                  </button>
+                  {userRole === 'admin' && (
+                    <button
+                      className="delete-btn"
+                      onClick={(e) => handleDelete(e, att)}
+                      title="Remove attachment"
+                      type="button"
+                    >
+                      <i className="pi pi-trash" />
+                    </button>
+                  )}
 
                   {/* File icon */}
                   <div style={{
@@ -285,7 +285,7 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
             })}
           </div>
         )}
-        
+
         {attachments.length > 0 && (
           <Paginator
             first={first}
@@ -299,89 +299,91 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
       </div>
 
       {/* ── Upload new files ── */}
-      <div>
-        <div className="section-header" style={{ marginBottom: 16 }}>
-          <span className="section-title">
-            <i className="pi pi-upload" style={{ color: '#a78bfa' }} />
-            Upload Files
-          </span>
-        </div>
-
-        <FileUpload
-          ref={fileUploadRef}
-          name="new_files"
-          multiple
-          customUpload
-          auto={false}
-          chooseLabel="Choose Files"
-          uploadLabel="Upload All"
-          cancelLabel="Clear"
-          onSelect={handleFileSelect}
-          onClear={() => setStagedFiles([])}
-          emptyTemplate={
-            <div style={{
-              textAlign: 'center', color: 'var(--text-muted)', fontSize: 13,
-              padding: '24px 0',
-            }}>
-              <i className="pi pi-cloud-upload" style={{ fontSize: 28, display: 'block', marginBottom: 8, opacity: 0.4 }} />
-              Drag & drop files here or click Choose Files
-            </div>
-          }
-          style={{ border: '1px dashed var(--border)', borderRadius: 10 }}
-        />
-
-        {stagedFiles.length > 0 && (
-          <div style={{ marginTop: 16 }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              marginBottom: 12,
-            }}>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
-                <i className="pi pi-clock" style={{ marginRight: 6 }} />
-                {stagedFiles.length} file(s) ready to upload:
-              </p>
-              <Button
-                label={uploading ? 'Uploading…' : `Upload ${stagedFiles.length} file(s)`}
-                icon={uploading ? 'pi pi-spin pi-spinner' : 'pi pi-cloud-upload'}
-                onClick={handleUpload}
-                disabled={uploading}
-                style={{ background: 'var(--accent)', border: 'none', fontSize: 12 }}
-              />
-            </div>
-
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
-              gap: 10,
-            }}>
-              {stagedFiles.map((f) => (
-                <div key={f.name} className="attachment-card" style={{ opacity: uploading ? 0.6 : 1 }}>
-                  <i
-                    className={fileIcon(f.name) + ' file-icon'}
-                    style={{ color: '#f59e0b' }}
-                  />
-                  <span className="file-name" title={f.name}>
-                    {f.name.length > 22 ? f.name.slice(0, 19) + '…' : f.name}
-                  </span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                    {formatBytes(f.size)}
-                  </span>
-                  {!uploading && (
-                    <button
-                      className="delete-btn"
-                      onClick={() => removeStagedFile(f.name)}
-                      title="Remove from queue"
-                      type="button"
-                    >
-                      <i className="pi pi-times" />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
+      {userRole === 'admin' && (
+        <div>
+          <div className="section-header" style={{ marginBottom: 16 }}>
+            <span className="section-title">
+              <i className="pi pi-upload" style={{ color: '#a78bfa' }} />
+              Upload Files
+            </span>
           </div>
-        )}
-      </div>
+
+          <FileUpload
+            ref={fileUploadRef}
+            name="new_files"
+            multiple
+            customUpload
+            auto={false}
+            chooseLabel="Choose Files"
+            uploadLabel="Upload All"
+            cancelLabel="Clear"
+            onSelect={handleFileSelect}
+            onClear={() => setStagedFiles([])}
+            emptyTemplate={
+              <div style={{
+                textAlign: 'center', color: 'var(--text-muted)', fontSize: 13,
+                padding: '24px 0',
+              }}>
+                <i className="pi pi-cloud-upload" style={{ fontSize: 28, display: 'block', marginBottom: 8, opacity: 0.4 }} />
+                Drag & drop files here or click Choose Files
+              </div>
+            }
+            style={{ border: '1px dashed var(--border)', borderRadius: 10 }}
+          />
+
+          {stagedFiles.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <div style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                marginBottom: 12,
+              }}>
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: 0 }}>
+                  <i className="pi pi-clock" style={{ marginRight: 6 }} />
+                  {stagedFiles.length} file(s) ready to upload:
+                </p>
+                <Button
+                  label={uploading ? 'Uploading…' : `Upload ${stagedFiles.length} file(s)`}
+                  icon={uploading ? 'pi pi-spin pi-spinner' : 'pi pi-cloud-upload'}
+                  onClick={handleUpload}
+                  disabled={uploading}
+                  style={{ background: 'var(--accent)', border: 'none', fontSize: 12 }}
+                />
+              </div>
+
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+                gap: 10,
+              }}>
+                {stagedFiles.map((f) => (
+                  <div key={f.name} className="attachment-card" style={{ opacity: uploading ? 0.6 : 1 }}>
+                    <i
+                      className={fileIcon(f.name) + ' file-icon'}
+                      style={{ color: '#f59e0b' }}
+                    />
+                    <span className="file-name" title={f.name}>
+                      {f.name.length > 22 ? f.name.slice(0, 19) + '…' : f.name}
+                    </span>
+                    <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                      {formatBytes(f.size)}
+                    </span>
+                    {!uploading && (
+                      <button
+                        className="delete-btn"
+                        onClick={() => removeStagedFile(f.name)}
+                        title="Remove from queue"
+                        type="button"
+                      >
+                        <i className="pi pi-times" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
   );
 };

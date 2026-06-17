@@ -17,6 +17,7 @@ import BugDialog from '../components/bugs/BugDialog';
 import AttachmentsDrawer from '../components/ui/AttachmentsDrawer';
 import ProjectAttachmentsPanel from '../components/projects/ProjectAttachmentsPanel';
 import DetailViewModal from '../components/ui/DetailViewModal';
+import { useAuth } from '../context/AuthContext';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useTasks } from '../hooks/useTasks';
 import tasksApi from '../api/tasksApi';
@@ -117,6 +118,7 @@ const ProjectDetailPage: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const id = Number(projectId);
   const navigate = useNavigate();
+  const { userRole } = useAuth();
   const toast = useRef<Toast>(null);
 
   // ── Project from shared context — NO additional API call ──────────────────
@@ -180,7 +182,7 @@ const ProjectDetailPage: React.FC = () => {
   // ── Detail view modal callbacks (need allFlatTasks — declared above) ──
   const openTaskDetail = useCallback((task: Task) =>
     setDetailItem({ type: 'task', data: task }),
-  []);
+    []);
   const openBugDetail = useCallback((bug: Bug) => {
     const taskName = bug.task_id
       ? allFlatTasks.find(t => t.id === bug.task_id)?.name ?? `Task #${bug.task_id}`
@@ -318,7 +320,7 @@ const ProjectDetailPage: React.FC = () => {
   const taskNameTemplate = useCallback((node: TreeNode) => {
     const task = node.data as Task;
     const depth = (node.key as string).split('-').length - 1;
-    
+
     const subtasks = task.subtasks || [];
     const totalSubtasks = subtasks.length;
     const completedSubtasks = subtasks.filter(s => s.status === 'resolved' || s.status === 'closed').length;
@@ -369,7 +371,7 @@ const ProjectDetailPage: React.FC = () => {
   const dateTemplate = useCallback((val: string | null) =>
     val ? <span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{val}</span>
       : <span style={{ color: 'var(--text-muted)', fontSize: '12px' }}>—</span>,
-  []);
+    []);
 
   const taskDescTemplate = useCallback((node: TreeNode) => {
     const task = node.data as Task;
@@ -398,31 +400,35 @@ const ProjectDetailPage: React.FC = () => {
             pointerEvents: hasAttachments ? 'auto' : 'none',
           }}
         />
-        {depth === 0 && (
-          <Button
-            icon="pi pi-sitemap"
-            className="p-button-text p-button-sm"
-            tooltip="Add sub-task"
-            onClick={() => openCreateTask(task.id)}
-            style={{ color: 'var(--text-secondary)' }}
-          />
+        {userRole === 'admin' && (
+          <>
+            {depth === 0 && (
+              <Button
+                icon="pi pi-sitemap"
+                className="p-button-text p-button-sm"
+                tooltip="Add sub-task"
+                onClick={() => openCreateTask(task.id)}
+                style={{ color: 'var(--text-secondary)' }}
+              />
+            )}
+            <Button
+              icon="pi pi-pencil"
+              className="p-button-text p-button-sm"
+              tooltip="Edit task"
+              onClick={() => openEditTask(task)}
+              style={{ color: 'var(--text-secondary)' }}
+            />
+            <Button
+              icon="pi pi-trash"
+              className="p-button-text p-button-sm p-button-danger"
+              tooltip="Delete task"
+              onClick={() => handleDeleteTask(task)}
+            />
+          </>
         )}
-        <Button
-          icon="pi pi-pencil"
-          className="p-button-text p-button-sm"
-          tooltip="Edit task"
-          onClick={() => openEditTask(task)}
-          style={{ color: 'var(--text-secondary)' }}
-        />
-        <Button
-          icon="pi pi-trash"
-          className="p-button-text p-button-sm p-button-danger"
-          tooltip="Delete task"
-          onClick={() => handleDeleteTask(task)}
-        />
       </div>
     );
-  }, [openTaskAttachments, openCreateTask, openEditTask, handleDeleteTask]);
+  }, [openTaskAttachments, openCreateTask, openEditTask, handleDeleteTask, userRole]);
 
   // ── Column templates — Bugs ──
   const bugTitleTemplate = useCallback((node: TreeNode) => {
@@ -497,31 +503,35 @@ const ProjectDetailPage: React.FC = () => {
             pointerEvents: hasAttachments ? 'auto' : 'none',
           }}
         />
-        {depth === 0 && (
-          <Button
-            icon="pi pi-sitemap"
-            className="p-button-text p-button-sm"
-            tooltip="Add sub-bug"
-            onClick={() => openCreateBug(bug.id)}
-            style={{ color: 'var(--text-secondary)' }}
-          />
+        {userRole === 'admin' && (
+          <>
+            {depth === 0 && (
+              <Button
+                icon="pi pi-sitemap"
+                className="p-button-text p-button-sm"
+                tooltip="Add sub-bug"
+                onClick={() => openCreateBug(bug.id)}
+                style={{ color: 'var(--text-secondary)' }}
+              />
+            )}
+            <Button
+              icon="pi pi-pencil"
+              className="p-button-text p-button-sm"
+              tooltip="Edit bug"
+              onClick={() => openEditBug(bug)}
+              style={{ color: 'var(--text-secondary)' }}
+            />
+            <Button
+              icon="pi pi-trash"
+              className="p-button-text p-button-sm p-button-danger"
+              tooltip="Delete bug"
+              onClick={() => handleDeleteBug(bug)}
+            />
+          </>
         )}
-        <Button
-          icon="pi pi-pencil"
-          className="p-button-text p-button-sm"
-          tooltip="Edit bug"
-          onClick={() => openEditBug(bug)}
-          style={{ color: 'var(--text-secondary)' }}
-        />
-        <Button
-          icon="pi pi-trash"
-          className="p-button-text p-button-sm p-button-danger"
-          tooltip="Delete bug"
-          onClick={() => handleDeleteBug(bug)}
-        />
       </div>
     );
-  }, [openBugAttachments, openCreateBug, openEditBug, handleDeleteBug]);
+  }, [openBugAttachments, openCreateBug, openEditBug, handleDeleteBug, userRole]);
 
   const projectAttachments = project?.attachments ?? [];
 
@@ -597,31 +607,11 @@ const ProjectDetailPage: React.FC = () => {
               header={`Tasks (${allFlatTasks.length})`}
               leftIcon="pi pi-list-check mr-2"
             >
-              {/* Toolbar */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    Collapsible hierarchy — click <i className="pi pi-chevron-right" /> to expand sub-tasks
-                  </span>
-                  <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCsvImport} style={{ display: 'none' }} />
-                  <Button
-                    label="Import CSV"
-                    icon="pi pi-upload"
-                    loading={isImporting}
-                    onClick={() => fileInputRef.current?.click()}
-                    style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
-                  />
-                  <Button
-                    label="Add Task"
-                    icon="pi pi-plus"
-                    onClick={() => openCreateTask(null)}
-                    style={{ background: 'var(--accent)', border: 'none' }}
-                  />
-                </div>
-              </div>
-
               {/* Custom Sleek Filter Bar for Tasks */}
               <div className="custom-filter-bar fade-in">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginRight: '24px' }}>
+
+                </div>
                 <div className="custom-filter-item">
                   <span className="custom-filter-label">Task Name</span>
                   <InputText
@@ -650,31 +640,51 @@ const ProjectDetailPage: React.FC = () => {
                     onChange={(e) => setTaskFilters((prev) => ({ ...prev, assignees: e.target.value }))}
                   />
                 </div>
+                {userRole === 'admin' && (
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCsvImport} style={{ display: 'none' }} />
+                    <Button
+                      label="Import CSV"
+                      icon="pi pi-upload"
+                      loading={isImporting}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-button-outlined"
+                      style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    />
+                    <Button
+                      label="Add Task"
+                      icon="pi pi-plus"
+                      onClick={() => openCreateTask(null)}
+                      style={{ background: 'var(--accent)', border: 'none' }}
+                    />
+                  </div>
+                )}
               </div>
 
-              <TreeTable
-                value={filteredTaskTreeNodes}
-                loading={tasksLoading}
-                scrollable
-                paginator
-                rows={10}
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-                tableStyle={{ minWidth: '880px' }}
-                emptyMessage={
-                  <div className="empty-state">
-                    <i className="pi pi-list-check" />
-                    <p>No tasks yet — add the first task!</p>
-                  </div>
-                }
-              >
-                <Column field="name" header="Task Name" body={taskNameTemplate} expander style={{ width: '250px' }} />
-                <Column field="description" header="Description" body={taskDescTemplate} style={{ minWidth: '150px' }} />
-                <Column field="status" header="Status" body={taskStatusTemplate} style={{ width: '130px' }} />
-                <Column field="assignees" header="Assignees" body={taskAssigneesTemplate} style={{ width: '150px' }} />
-                <Column header="Start" body={(n) => dateTemplate((n.data as Task).start_date)} style={{ width: '110px' }} />
-                <Column header="End" body={(n) => dateTemplate((n.data as Task).end_date)} style={{ width: '110px' }} />
-                <Column header="Actions" body={taskActionsTemplate} style={{ width: '150px' }} />
-              </TreeTable>
+              <div style={{ width: '100%', overflowX: 'auto' }}>
+                <TreeTable
+                  value={filteredTaskTreeNodes}
+                  loading={tasksLoading}
+                  paginator
+                  rows={10}
+                  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                  tableStyle={{ minWidth: '880px', width: '100%' }}
+                  emptyMessage={
+                    <div className="empty-state">
+                      <i className="pi pi-list-check" />
+                      <p>No tasks yet — add the first task!</p>
+                    </div>
+                  }
+                >
+                  <Column field="name" header="Task Name" body={taskNameTemplate} expander style={{ minWidth: '250px' }} />
+                  <Column field="description" header="Description" body={taskDescTemplate} style={{ minWidth: '150px' }} />
+                  <Column field="status" header="Status" body={taskStatusTemplate} style={{ width: '130px' }} />
+                  <Column field="assignees" header="Assignees" body={taskAssigneesTemplate} style={{ minWidth: '130px' }} />
+                  <Column header="Start" body={(n) => dateTemplate((n.data as Task).start_date)} style={{ width: '110px' }} />
+                  <Column header="End" body={(n) => dateTemplate((n.data as Task).end_date)} style={{ width: '110px' }} />
+                  <Column header="Actions" body={taskActionsTemplate} style={{ width: '140px' }} />
+                </TreeTable>
+              </div>
             </TabPanel>
 
             {/* ══ Bugs Tab ═══════════════════════════════════════════════════ */}
@@ -682,24 +692,11 @@ const ProjectDetailPage: React.FC = () => {
               header={`Bugs (${allFlatBugs.length})`}
               leftIcon="pi pi-bug mr-2"
             >
-              {/* Toolbar */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                    Collapsible hierarchy — click <i className="pi pi-chevron-right" /> to expand sub-bugs
-                  </span>
-                  <Button
-                    label="Report Bug"
-                    icon="pi pi-plus"
-                    onClick={() => openCreateBug(null)}
-                    className="p-button-danger"
-                    style={{ border: 'none' }}
-                  />
-                </div>
-              </div>
-
               {/* Custom Sleek Filter Bar for Bugs */}
               <div className="custom-filter-bar fade-in">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginRight: '24px' }}>
+
+                </div>
                 <div className="custom-filter-item">
                   <span className="custom-filter-label">Bug Title</span>
                   <InputText
@@ -722,38 +719,50 @@ const ProjectDetailPage: React.FC = () => {
                 <div className="custom-filter-item">
                   <span className="custom-filter-label">Reporter</span>
                   <InputText
-                    placeholder="Search user..."
+                    placeholder="Search reporter..."
                     className="custom-filter-input"
                     value={bugFilters.reporter}
                     onChange={(e) => setBugFilters((prev) => ({ ...prev, reporter: e.target.value }))}
                   />
                 </div>
+                {userRole === 'admin' && (
+                  <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    <Button
+                      label="Report Bug"
+                      icon="pi pi-plus"
+                      onClick={() => openCreateBug(null)}
+                      className="p-button-danger"
+                      style={{ border: 'none' }}
+                    />
+                  </div>
+                )}
               </div>
 
-              <TreeTable
-                value={filteredBugTreeNodes}
-                loading={bugsLoading}
-                scrollable
-                paginator
-                rows={10}
-                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
-                tableStyle={{ minWidth: '880px' }}
-                emptyMessage={
-                  <div className="empty-state">
-                    <i className="pi pi-bug" />
-                    <p>No bugs reported — great work!</p>
-                  </div>
-                }
-              >
-                <Column field="title" header="Bug Title" body={bugTitleTemplate} expander style={{ width: '250px' }} />
-                <Column field="description" header="Description" body={bugDescTemplate} style={{ minWidth: '150px' }} />
-                <Column field="status" header="Status" body={bugStatusTemplate} style={{ width: '130px' }} />
-                <Column field="reporter" header="Reporter" body={bugReporterTemplate} style={{ width: '130px' }} />
-                <Column header="Linked Task" body={bugLinkedTaskTemplate} style={{ width: '180px' }} />
-                <Column header="Start" body={(n) => dateTemplate((n.data as Bug).start_date)} style={{ width: '110px' }} />
-                <Column header="End" body={(n) => dateTemplate((n.data as Bug).end_date)} style={{ width: '110px' }} />
-                <Column header="Actions" body={bugActionsTemplate} style={{ width: '150px' }} />
-              </TreeTable>
+              <div style={{ width: '100%', overflowX: 'auto' }}>
+                <TreeTable
+                  value={filteredBugTreeNodes}
+                  loading={bugsLoading}
+                  paginator
+                  rows={10}
+                  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                  tableStyle={{ minWidth: '880px', width: '100%' }}
+                  emptyMessage={
+                    <div className="empty-state">
+                      <i className="pi pi-bug" />
+                      <p>No bugs reported — great work!</p>
+                    </div>
+                  }
+                >
+                  <Column field="title" header="Bug Title" body={bugTitleTemplate} expander style={{ minWidth: '220px' }} />
+                  <Column field="description" header="Description" body={bugDescTemplate} style={{ minWidth: '150px' }} />
+                  <Column field="status" header="Status" body={bugStatusTemplate} style={{ width: '130px' }} />
+                  <Column field="reporter" header="Reporter" body={bugReporterTemplate} style={{ minWidth: '120px' }} />
+                  <Column header="Linked Task" body={bugLinkedTaskTemplate} style={{ minWidth: '140px' }} />
+                  <Column header="Start" body={(n) => dateTemplate((n.data as Bug).start_date)} style={{ width: '110px' }} />
+                  <Column header="End" body={(n) => dateTemplate((n.data as Bug).end_date)} style={{ width: '110px' }} />
+                  <Column header="Actions" body={bugActionsTemplate} style={{ width: '140px' }} />
+                </TreeTable>
+              </div>
             </TabPanel>
 
             {/* ══ Attachments Tab ═════════════════════════════════════════════ */}
@@ -812,8 +821,8 @@ const ProjectDetailPage: React.FC = () => {
           detailItem?.type === 'task'
             ? () => openEditTask(detailItem.data as Task)
             : detailItem?.type === 'bug'
-            ? () => openEditBug(detailItem.data as Bug)
-            : undefined
+              ? () => openEditBug(detailItem.data as Bug)
+              : undefined
         }
       />
     </>

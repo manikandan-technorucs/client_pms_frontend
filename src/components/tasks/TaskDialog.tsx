@@ -211,7 +211,7 @@ const TaskDialog: React.FC<TaskDialogProps> = ({
       onHide={onHide}
       header={isEdit ? `Edit Task — ${task?.name}` : 'New Task'}
       footer={footer}
-      style={{ width: '640px' }}
+      style={{ width: '95vw', maxWidth: '640px' }}
       modal
       draggable={false}
     >

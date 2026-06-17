@@ -218,7 +218,7 @@ const BugDialog: React.FC<BugDialogProps> = ({
       onHide={onHide}
       header={isEdit ? `Edit Bug — ${bug?.title}` : 'Report New Bug'}
       footer={footer}
-      style={{ width: '680px' }}
+      style={{ width: '95vw', maxWidth: '680px' }}
       modal
       draggable={false}
     >

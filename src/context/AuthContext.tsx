@@ -4,6 +4,7 @@ import axiosClient from '../api/axiosClient';
 interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
+  userRole: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
@@ -12,6 +13,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [userRole, setUserRole] = useState<string | null>(null);
+  
   // Keep a ref so the interceptor closure always reads the latest token
   const tokenRef = useRef<string | null>(token);
 
@@ -19,8 +22,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     tokenRef.current = token;
     if (token) {
       localStorage.setItem('token', token);
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUserRole(payload.role || null);
+      } catch (e) {
+        setUserRole(null);
+      }
     } else {
       localStorage.removeItem('token');
+      setUserRole(null);
     }
   }, [token]);
 
@@ -69,7 +79,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ token, isAuthenticated: !!token, login, logout }}>
+    <AuthContext.Provider value={{ token, isAuthenticated: !!token, userRole, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
