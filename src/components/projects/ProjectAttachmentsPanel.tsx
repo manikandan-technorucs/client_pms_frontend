@@ -1,6 +1,8 @@
 import React, { useRef, useState } from 'react';
 import { Button } from 'primereact/button';
 import { FileUpload } from 'primereact/fileupload';
+import { Paginator } from 'primereact/paginator';
+import type { PaginatorPageChangeEvent } from 'primereact/paginator';
 
 import { ConfirmPopup, confirmPopup } from 'primereact/confirmpopup';
 import { Toast } from 'primereact/toast';
@@ -54,6 +56,15 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
 
   const [stagedFiles, setStagedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
+
+  // ── Pagination state ──
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(10);
+
+  const onPageChange = (event: PaginatorPageChangeEvent) => {
+    setFirst(event.first);
+    setRows(event.rows);
+  };
 
   // ── Stage files for upload ──
   const handleFileSelect = (e: any) => {
@@ -171,7 +182,7 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
             gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
             gap: 12,
           }}>
-            {attachments.map((att) => {
+            {attachments.slice(first, first + rows).map((att) => {
               return (
                 <div
                   key={att.id}
@@ -273,6 +284,17 @@ const ProjectAttachmentsPanel: React.FC<ProjectAttachmentsPanelProps> = ({
               );
             })}
           </div>
+        )}
+        
+        {attachments.length > 0 && (
+          <Paginator
+            first={first}
+            rows={rows}
+            totalRecords={attachments.length}
+            onPageChange={onPageChange}
+            template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+            style={{ marginTop: '1rem' }}
+          />
         )}
       </div>
 

@@ -19,6 +19,7 @@ import ProjectAttachmentsPanel from '../components/projects/ProjectAttachmentsPa
 import DetailViewModal from '../components/ui/DetailViewModal';
 import { useProjectsContext } from '../context/ProjectsContext';
 import { useTasks } from '../hooks/useTasks';
+import tasksApi from '../api/tasksApi';
 import { useBugs } from '../hooks/useBugs';
 import type {
   Task, TaskCreate, TaskUpdate,
@@ -125,7 +126,7 @@ const ProjectDetailPage: React.FC = () => {
     [projects, id],
   );
 
-  const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask } = useTasks(id);
+  const { tasks, loading: tasksLoading, createTask, updateTask, deleteTask, refresh: refreshTasks } = useTasks(id);
   const { bugs, loading: bugsLoading, createBug, updateBug, deleteBug } = useBugs(id);
 
   // ── Task dialog state ──
@@ -194,6 +195,26 @@ const ProjectDetailPage: React.FC = () => {
   ];
 
   // ── Task dialog handlers ──
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleCsvImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsImporting(true);
+      const res = await tasksApi.importCsv(id, file);
+      toast.current?.show({ severity: 'success', summary: 'Import Successful', detail: res.message, life: 3000 });
+      await refreshTasks();
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || err.message || 'Import failed';
+      toast.current?.show({ severity: 'error', summary: 'Import Failed', detail: msg, life: 5000 });
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const openCreateTask = useCallback((parentId: number | null = null) => {
     setEditingTask(null);
     setTaskParentId(parentId);
@@ -562,6 +583,14 @@ const ProjectDetailPage: React.FC = () => {
                   <span style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                     Collapsible hierarchy — click <i className="pi pi-chevron-right" /> to expand sub-tasks
                   </span>
+                  <input type="file" accept=".csv" ref={fileInputRef} onChange={handleCsvImport} style={{ display: 'none' }} />
+                  <Button
+                    label="Import CSV"
+                    icon="pi pi-upload"
+                    loading={isImporting}
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  />
                   <Button
                     label="Add Task"
                     icon="pi pi-plus"
@@ -607,6 +636,9 @@ const ProjectDetailPage: React.FC = () => {
                 value={filteredTaskTreeNodes}
                 loading={tasksLoading}
                 scrollable
+                paginator
+                rows={10}
+                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
                 tableStyle={{ minWidth: '880px' }}
                 emptyMessage={
                   <div className="empty-state">
@@ -681,7 +713,10 @@ const ProjectDetailPage: React.FC = () => {
                 value={filteredBugTreeNodes}
                 loading={bugsLoading}
                 scrollable
-                tableStyle={{ minWidth: '960px' }}
+                paginator
+                rows={10}
+                paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
+                tableStyle={{ minWidth: '880px' }}
                 emptyMessage={
                   <div className="empty-state">
                     <i className="pi pi-bug" />

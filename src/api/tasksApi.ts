@@ -10,9 +10,15 @@ const tasksApi = {
   get: (id: number): Promise<Task> =>
     axiosClient.get<Task>(`/tasks/${id}`).then((r) => r.data),
 
-  /** Create a new task (JSON body, no files at create time) */
   create: (data: TaskCreate): Promise<Task> =>
     axiosClient.post<Task>('/tasks/', data).then((r) => r.data),
+
+  importCsv: (projectId: number, file: File): Promise<{ message: string; count: number }> => {
+    const fd = new FormData();
+    fd.append('project_id', String(projectId));
+    fd.append('file', file);
+    return axiosClient.post('/tasks/import', fd).then((r) => r.data);
+  },
 
   /**
    * Advanced multi-part PUT update.
@@ -43,7 +49,6 @@ const tasksApi = {
 
     fd.append('keep_attachment_ids', JSON.stringify(keepIds));
 
-    // Append each new file binary
     newFiles.forEach((file) => fd.append('new_files', file, file.name));
 
     return axiosClient

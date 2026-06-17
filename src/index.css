@@ -969,3 +969,45 @@ textarea.p-inputtextarea {
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
+/* ──────────────────────────────────────────────────────────────
+   Paginator Custom Styling
+────────────────────────────────────────────────────────────── */
+.p-paginator {
+  background: transparent !important;
+  border: none !important;
+  padding: 1rem 0 !important;
+}
+.p-paginator .p-paginator-pages .p-paginator-page,
+.p-paginator .p-paginator-first,
+.p-paginator .p-paginator-prev,
+.p-paginator .p-paginator-next,
+.p-paginator .p-paginator-last {
+  background: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+  min-width: 36px !important;
+  height: 36px !important;
+  border-radius: 8px !important;
+  margin: 0 4px !important;
+  font-weight: 600 !important;
+  transition: all 0.2s ease !important;
+}
+.p-paginator .p-paginator-pages .p-paginator-page:hover,
+.p-paginator .p-paginator-first:not(.p-disabled):hover,
+.p-paginator .p-paginator-prev:not(.p-disabled):hover,
+.p-paginator .p-paginator-next:not(.p-disabled):hover,
+.p-paginator .p-paginator-last:not(.p-disabled):hover {
+  background: #f8fafc !important;
+  color: #0f766e !important;
+  border-color: #0f766e !important;
+}
+.p-paginator .p-paginator-pages .p-paginator-page.p-highlight {
+  background: #ccfbf1 !important;
+  color: #0f766e !important;
+  border-color: #5eead4 !important;
+}
+.p-paginator .p-disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+

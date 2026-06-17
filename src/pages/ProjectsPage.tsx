@@ -225,7 +225,7 @@ const ProjectsPage: React.FC = () => {
             filters={filters}
             paginator
             rows={10}
-            rowsPerPageOptions={[10, 25, 50]}
+            paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink"
             sortMode="multiple"
             emptyMessage={
               <div className="empty-state">
